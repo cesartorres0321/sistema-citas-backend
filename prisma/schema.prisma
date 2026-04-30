@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+model Profesor {
+  id              Int              @id @default(autoincrement())
+  nombre          String
+  email           String           @unique
+  password        String
+  departamento    String
+  role            String           @default("profesor")
+  duracionCita    Int              @default(30)
+  foto            String  jm
+
+  citas           Cita[]
+  disponibilidades Disponibilidad[]
+  bloqueos        BloqueProfesor[]
+  createdAt       DateTime         @default(now())
+}
+
+model BloqueProfesor {
+  id         Int      @id @default(autoincrement())
+  profesor   Profesor @relation(fields: [profesorId], references: [id])
+  profesorId Int
+  fecha      DateTime
+  motivo     String?
+  createdAt  DateTime @default(now())
+
+  @@unique([profesorId, fecha])
+}
+
+model Alumno {
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  email     String   @unique
+  password  String
+  matricula String   @unique
+  role      String   @default("alumno")
+  foto      String?
+
+  citas     Cita[]
+  createdAt DateTime @default(now())
+}
+
+model Disponibilidad {
+  id          Int      @id @default(autoincrement())
+  profesor    Profesor @relation(fields: [profesorId], references: [id])
+  profesorId  Int
+  diaSemana   Int
+  horaInicio  String
+  horaFin     String
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  tokenHash String   @unique
+  userId    Int
+  userType  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId, userType])
+}
+
+enum EstadoCita {
+  agendada
+  cancelada
+  completada
+}
+
+model Cita {
+  id          Int      @id @default(autoincrement())
+
+  profesor    Profesor @relation(fields: [profesorId], references: [id])
+  profesorId  Int
+
+  alumno      Alumno   @relation(fields: [alumnoId], references: [id])
+  alumnoId    Int
+
+  fecha       DateTime
+  horaInicio  String
+  horaFin     String
+
+  motivo      String
+
+  estado      EstadoCita @default(agendada)
+
+  createdAt   DateTime @default(now())
+
+  @@index([profesorId, fecha, horaInicio])
+}
