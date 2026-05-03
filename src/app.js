@@ -11,6 +11,8 @@ import citaRoutes from "./routes/cita.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import disponibilidadRoutes from "./routes/disponibilidad.routes.js";
 import bloqueoRoutes from "./routes/bloqueo.routes.js";
+import departamentoRoutes from "./routes/departamento.routes.js";
+import tipoProfesorRoutes from "./routes/tipoProfesor.routes.js";
 
 import { errorHandler } from "./middlewares/error.middleware.js";
 import { apiLimiter } from "./middlewares/rateLimit.middleware.js";
@@ -53,6 +55,8 @@ app.use("/alumnos", alumnoRoutes);
 app.use("/citas", citaRoutes);
 app.use("/disponibilidad", disponibilidadRoutes);
 app.use("/bloqueos", bloqueoRoutes);
+app.use("/departamentos", departamentoRoutes);
+app.use("/tipos-profesor", tipoProfesorRoutes);
 
 app.use(errorHandler); 
 

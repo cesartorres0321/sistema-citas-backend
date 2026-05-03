@@ -67,12 +67,13 @@ router.get("/:id", getProfesorById);
  *         application/json:
  *           schema:
  *             type: object
- *             required: [nombre, email, password, departamento]
+ *             required: [nombre, email, password]
  *             properties:
  *               nombre: { type: string }
  *               email: { type: string }
  *               password: { type: string }
- *               departamento: { type: string }
+ *               departamentoId: { type: integer }
+ *               tipoId: { type: integer }
  *     responses:
  *       201:
  *         description: Profesor creado
@@ -92,7 +93,8 @@ router.post(
       .trim()
       .isLength({ min: 6 })
       .withMessage("La contraseña debe tener al menos 6 caracteres"),
-    body("departamento").trim().notEmpty().withMessage("El departamento es obligatorio"),
+    body("departamentoId").optional().isInt({ min: 1 }).withMessage("departamentoId debe ser un número entero positivo"),
+    body("tipoId").optional().isInt({ min: 1 }).withMessage("tipoId debe ser un número entero positivo"),
     validateFields,
   ],
   createProfesor
@@ -119,7 +121,8 @@ router.post(
  *             properties:
  *               nombre: { type: string }
  *               email: { type: string }
- *               departamento: { type: string }
+ *               departamentoId: { type: integer }
+ *               tipoId: { type: integer }
  *     responses:
  *       200:
  *         description: Profesor actualizado
@@ -134,7 +137,8 @@ router.put(
     param("id").isInt().withMessage("El ID debe ser un número"),
     body("nombre").optional().trim().stripLow(),
     body("email").optional().trim().normalizeEmail().isEmail().withMessage("Debe ser un email válido"),
-    body("departamento").optional().trim().stripLow(),
+    body("departamentoId").optional().isInt({ min: 1 }).withMessage("departamentoId debe ser un número entero positivo"),
+    body("tipoId").optional().isInt({ min: 1 }).withMessage("tipoId debe ser un número entero positivo"),
     validateFields,
   ],
   updateProfesor

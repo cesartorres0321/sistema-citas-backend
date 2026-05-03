@@ -36,9 +36,12 @@ const router = Router();
  *               matricula:
  *                 type: string
  *                 description: Requerido si role es alumno
- *               departamento:
- *                 type: string
- *                 description: Requerido si role es profesor
+ *               departamentoId:
+ *                 type: integer
+ *                 description: ID del departamento (requerido si role es profesor)
+ *               tipoId:
+ *                 type: integer
+ *                 description: ID del tipo de profesor (opcional)
  *     responses:
  *       201:
  *         description: Usuario registrado
@@ -59,7 +62,8 @@ router.post(
       .isIn(["alumno", "profesor"])
       .withMessage("El rol debe ser alumno o profesor"),
     body("matricula").optional().trim().stripLow(),
-    body("departamento").optional().trim().stripLow(),
+    body("departamentoId").optional().isInt({ min: 1 }).withMessage("departamentoId debe ser un número entero positivo"),
+    body("tipoId").optional().isInt({ min: 1 }).withMessage("tipoId debe ser un número entero positivo"),
     validateFields,
   ],
   register

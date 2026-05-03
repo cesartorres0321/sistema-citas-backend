@@ -69,7 +69,7 @@ export const login = async (req, res, next) => {
 
 export const register = async (req, res, next) => {
   try {
-    const { nombre, email, password, matricula, departamento, role } = req.body;
+    const { nombre, email, password, matricula, departamentoId, tipoId, role } = req.body;
 
     const existingAlumno = await prisma.alumno.findUnique({ where: { email } });
     const existingProfesor = await prisma.profesor.findUnique({ where: { email } });
@@ -82,7 +82,11 @@ export const register = async (req, res, next) => {
 
     if (role === "profesor") {
       const { password: _, ...nuevoProfesor } = await prisma.profesor.create({
-        data: { nombre, email, password: hashedPassword, departamento, role: "profesor" },
+        data: {
+          nombre, email, password: hashedPassword, role: "profesor",
+          departamentoId: departamentoId ? Number(departamentoId) : undefined,
+          tipoId: tipoId ? Number(tipoId) : undefined,
+        },
       });
       return created(res, nuevoProfesor);
     }
@@ -169,7 +173,12 @@ export const getPerfil = async (req, res, next) => {
     if (role === "profesor") {
       const profesor = await prisma.profesor.findUnique({
         where: { id },
-        select: { id: true, nombre: true, email: true, departamento: true, duracionCita: true, role: true, foto: true, createdAt: true },
+        select: {
+          id: true, nombre: true, email: true,
+          departamento: { select: { id: true, nombre: true } },
+          tipo: { select: { id: true, nombre: true } },
+          duracionCita: true, role: true, foto: true, createdAt: true,
+        },
       });
       if (!profesor) return err(res, "Usuario no encontrado", 404);
       return ok(res, profesor);
@@ -209,7 +218,12 @@ export const updatePerfil = async (req, res, next) => {
       const profesor = await prisma.profesor.update({
         where: { id },
         data,
-        select: { id: true, nombre: true, email: true, departamento: true, duracionCita: true, role: true, foto: true },
+        select: {
+          id: true, nombre: true, email: true,
+          departamento: { select: { id: true, nombre: true } },
+          tipo: { select: { id: true, nombre: true } },
+          duracionCita: true, role: true, foto: true,
+        },
       });
       return ok(res, profesor);
     }

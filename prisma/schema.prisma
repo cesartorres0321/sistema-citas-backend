@@ -5,20 +5,38 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
-model Profesor {
-  id              Int              @id @default(autoincrement())
-  nombre          String
-  email           String           @unique
-  password        String
-  departamento    String
-  role            String           @default("profesor")
-  duracionCita    Int              @default(30)
-  foto            String  jm
 
-  citas           Cita[]
+model Departamento {
+  id         Int        @id @default(autoincrement())
+  nombre     String     @unique
+  profesores Profesor[]
+  createdAt  DateTime   @default(now())
+}
+
+model TipoProfesor {
+  id         Int        @id @default(autoincrement())
+  nombre     String     @unique
+  profesores Profesor[]
+  createdAt  DateTime   @default(now())
+}
+
+model Profesor {
+  id               Int              @id @default(autoincrement())
+  nombre           String
+  email            String           @unique
+  password         String
+  departamento     Departamento?    @relation(fields: [departamentoId], references: [id])
+  departamentoId   Int?
+  tipo             TipoProfesor?    @relation(fields: [tipoId], references: [id])
+  tipoId           Int?
+  role             String           @default("profesor")
+  duracionCita     Int              @default(30)
+  foto             String?
+
+  citas            Cita[]
   disponibilidades Disponibilidad[]
-  bloqueos        BloqueProfesor[]
-  createdAt       DateTime         @default(now())
+  bloqueos         BloqueProfesor[]
+  createdAt        DateTime         @default(now())
 }
 
 model BloqueProfesor {

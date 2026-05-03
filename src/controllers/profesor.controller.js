@@ -4,7 +4,9 @@ import { ok, created, paginated, err } from "../utils/apiResponse.js";
 
 const PROFESOR_SELECT = {
   id: true, nombre: true, email: true,
-  departamento: true, role: true, duracionCita: true, createdAt: true,
+  departamento: { select: { id: true, nombre: true } },
+  tipo: { select: { id: true, nombre: true } },
+  role: true, duracionCita: true, createdAt: true,
 };
 
 export const getProfesores = async (req, res, next) => {
@@ -43,7 +45,7 @@ export const getProfesorById = async (req, res, next) => {
 
 export const createProfesor = async (req, res, next) => {
   try {
-    const { nombre, email, password, departamento } = req.body;
+    const { nombre, email, password, departamentoId, tipoId } = req.body;
 
     const profesorExistente = await prisma.profesor.findUnique({ where: { email } });
     if (profesorExistente) return err(res, "El email ya está registrado");
@@ -51,7 +53,11 @@ export const createProfesor = async (req, res, next) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const nuevoProfesor = await prisma.profesor.create({
-      data: { nombre, email, password: hashedPassword, departamento },
+      data: {
+        nombre, email, password: hashedPassword,
+        departamentoId: departamentoId ? Number(departamentoId) : undefined,
+        tipoId: tipoId ? Number(tipoId) : undefined,
+      },
       select: PROFESOR_SELECT,
     });
 
@@ -64,11 +70,17 @@ export const createProfesor = async (req, res, next) => {
 export const updateProfesor = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { nombre, email, departamento } = req.body;
+    const { nombre, email, departamentoId, tipoId } = req.body;
+
+    const data = {};
+    if (nombre !== undefined) data.nombre = nombre;
+    if (email !== undefined) data.email = email;
+    if (departamentoId !== undefined) data.departamentoId = Number(departamentoId);
+    if (tipoId !== undefined) data.tipoId = tipoId ? Number(tipoId) : null;
 
     const profesorActualizado = await prisma.profesor.update({
       where: { id: Number(id) },
-      data: { nombre, email, departamento },
+      data,
       select: PROFESOR_SELECT,
     });
 
