@@ -83,8 +83,8 @@ export const createCita = async (req, res, next) => {
 
     if (!profesor) return err(res, "El profesor no existe", 404);
 
-    // Día de la semana
-    const diaSemana = fechaConvertida.getDay();
+    // Día de la semana en UTC para evitar desfase por timezone del servidor
+    const diaSemana = fechaConvertida.getUTCDay();
 
     const disponibilidad = await prisma.disponibilidad.findFirst({
       where: {
@@ -217,7 +217,7 @@ export const getHorariosDisponibles = async (req, res, next) => {
     });
     if (!profesor) return err(res, "Profesor no encontrado", 404);
 
-    const diaSemana = fechaConvertida.getDay();
+    const diaSemana = fechaConvertida.getUTCDay();
 
     const disponibilidad = await prisma.disponibilidad.findFirst({
       where: {
