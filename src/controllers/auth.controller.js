@@ -24,29 +24,20 @@ export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    let user = await prisma.alumno.findUnique({ where: { email } });
-    let userType = "alumno";
-
-    if (!user) {
-      user = await prisma.profesor.findUnique({ where: { email } });
-      userType = "profesor";
-    }
-
+    const user = await prisma.usuario.findUnique({ where: { email } });
     if (!user) return err(res, "Credenciales inválidas");
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return err(res, "Credenciales inválidas");
 
-    const role = user.role;
-
     const token = jwt.sign(
-      { id: user.id, role },
+      { id: user.id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
     const refreshToken = jwt.sign(
-      { id: user.id, role, type: "refresh" },
+      { id: user.id, role: user.role, type: "refresh" },
       process.env.JWT_SECRET,
       { expiresIn: `${REFRESH_EXPIRY_DAYS}d`, jwtid: randomUUID() }
     );
@@ -55,7 +46,6 @@ export const login = async (req, res, next) => {
       data: {
         tokenHash: hashToken(refreshToken),
         userId: user.id,
-        userType,
         expiresAt: refreshExpiresAt(),
       },
     });
@@ -71,33 +61,29 @@ export const register = async (req, res, next) => {
   try {
     const { nombre, email, password, matricula, departamentoId, tipoId, role } = req.body;
 
-    const existingAlumno = await prisma.alumno.findUnique({ where: { email } });
-    const existingProfesor = await prisma.profesor.findUnique({ where: { email } });
-
-    if (existingAlumno || existingProfesor) {
-      return err(res, "El usuario ya existe");
-    }
+    const existing = await prisma.usuario.findUnique({ where: { email } });
+    if (existing) return err(res, "El usuario ya existe");
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     if (role === "profesor") {
-      const { password: _, ...nuevoProfesor } = await prisma.profesor.create({
+      const { password: _, ...nuevo } = await prisma.usuario.create({
         data: {
           nombre, email, password: hashedPassword, role: "profesor",
           departamentoId: departamentoId ? Number(departamentoId) : undefined,
           tipoId: tipoId ? Number(tipoId) : undefined,
         },
       });
-      return created(res, nuevoProfesor);
+      return created(res, nuevo);
     }
 
     if (!matricula) return err(res, "La matrícula es obligatoria para alumnos");
 
-    const { password: __, ...nuevoAlumno } = await prisma.alumno.create({
-      data: { nombre, email, password: hashedPassword, matricula },
+    const { password: __, ...nuevo } = await prisma.usuario.create({
+      data: { nombre, email, password: hashedPassword, matricula, role: "alumno" },
     });
 
-    return created(res, nuevoAlumno);
+    return created(res, nuevo);
   } catch (error) {
     next(error);
   }
@@ -134,7 +120,6 @@ export const refresh = async (req, res, next) => {
         data: {
           tokenHash: hashToken(newRefreshToken),
           userId: stored.userId,
-          userType: stored.userType,
           expiresAt: refreshExpiresAt(),
         },
       });
@@ -157,34 +142,27 @@ export const refresh = async (req, res, next) => {
   }
 };
 
+const PERFIL_PROFESOR_SELECT = {
+  id: true, nombre: true, email: true, role: true, foto: true, createdAt: true,
+  duracionCita: true,
+  departamento: { select: { id: true, nombre: true } },
+  tipo: { select: { id: true, nombre: true } },
+};
+
+const PERFIL_ALUMNO_SELECT = {
+  id: true, nombre: true, email: true, matricula: true, role: true, foto: true, createdAt: true,
+};
+
 export const getPerfil = async (req, res, next) => {
   try {
     const { id, role } = req.user;
 
-    if (role === "alumno") {
-      const alumno = await prisma.alumno.findUnique({
-        where: { id },
-        select: { id: true, nombre: true, email: true, matricula: true, role: true, foto: true, createdAt: true },
-      });
-      if (!alumno) return err(res, "Usuario no encontrado", 404);
-      return ok(res, alumno);
-    }
+    const select = role === "alumno" ? PERFIL_ALUMNO_SELECT : PERFIL_PROFESOR_SELECT;
 
-    if (role === "profesor") {
-      const profesor = await prisma.profesor.findUnique({
-        where: { id },
-        select: {
-          id: true, nombre: true, email: true,
-          departamento: { select: { id: true, nombre: true } },
-          tipo: { select: { id: true, nombre: true } },
-          duracionCita: true, role: true, foto: true, createdAt: true,
-        },
-      });
-      if (!profesor) return err(res, "Usuario no encontrado", 404);
-      return ok(res, profesor);
-    }
+    const usuario = await prisma.usuario.findUnique({ where: { id }, select });
+    if (!usuario) return err(res, "Usuario no encontrado", 404);
 
-    return err(res, "Perfil no disponible para este rol", 403);
+    return ok(res, usuario);
   } catch (error) {
     next(error);
   }
@@ -205,30 +183,10 @@ export const updatePerfil = async (req, res, next) => {
 
     if (Object.keys(data).length === 0) return err(res, "No hay datos para actualizar");
 
-    if (role === "alumno") {
-      const alumno = await prisma.alumno.update({
-        where: { id },
-        data,
-        select: { id: true, nombre: true, email: true, matricula: true, role: true, foto: true },
-      });
-      return ok(res, alumno);
-    }
+    const select = role === "alumno" ? PERFIL_ALUMNO_SELECT : PERFIL_PROFESOR_SELECT;
 
-    if (role === "profesor") {
-      const profesor = await prisma.profesor.update({
-        where: { id },
-        data,
-        select: {
-          id: true, nombre: true, email: true,
-          departamento: { select: { id: true, nombre: true } },
-          tipo: { select: { id: true, nombre: true } },
-          duracionCita: true, role: true, foto: true,
-        },
-      });
-      return ok(res, profesor);
-    }
-
-    return err(res, "Actualización no disponible para este rol", 403);
+    const usuario = await prisma.usuario.update({ where: { id }, data, select });
+    return ok(res, usuario);
   } catch (error) {
     next(error);
   }
@@ -237,7 +195,6 @@ export const updatePerfil = async (req, res, next) => {
 export const logout = async (req, res, next) => {
   const refreshToken = req.cookies.refreshToken;
 
-  // Idempotente: si no hay cookie simplemente responde OK
   if (!refreshToken) return ok(res, null);
 
   try {

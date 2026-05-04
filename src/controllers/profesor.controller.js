@@ -3,10 +3,9 @@ import bcrypt from "bcrypt";
 import { ok, created, paginated, err } from "../utils/apiResponse.js";
 
 const PROFESOR_SELECT = {
-  id: true, nombre: true, email: true,
+  id: true, nombre: true, email: true, role: true, duracionCita: true, createdAt: true,
   departamento: { select: { id: true, nombre: true } },
   tipo: { select: { id: true, nombre: true } },
-  role: true, duracionCita: true, createdAt: true,
 };
 
 export const getProfesores = async (req, res, next) => {
@@ -15,9 +14,11 @@ export const getProfesores = async (req, res, next) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
     const skip = (page - 1) * limit;
 
+    const where = { role: { in: ["profesor", "admin"] } };
+
     const [profesores, total] = await Promise.all([
-      prisma.profesor.findMany({ select: PROFESOR_SELECT, skip, take: limit, orderBy: { nombre: "asc" } }),
-      prisma.profesor.count(),
+      prisma.usuario.findMany({ where, select: PROFESOR_SELECT, skip, take: limit, orderBy: { nombre: "asc" } }),
+      prisma.usuario.count({ where }),
     ]);
 
     return paginated(res, profesores, total, page, Math.ceil(total / limit));
@@ -30,8 +31,8 @@ export const getProfesorById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const profesor = await prisma.profesor.findUnique({
-      where: { id: Number(id) },
+    const profesor = await prisma.usuario.findFirst({
+      where: { id: Number(id), role: { in: ["profesor", "admin"] } },
       select: PROFESOR_SELECT,
     });
 
@@ -47,21 +48,21 @@ export const createProfesor = async (req, res, next) => {
   try {
     const { nombre, email, password, departamentoId, tipoId } = req.body;
 
-    const profesorExistente = await prisma.profesor.findUnique({ where: { email } });
-    if (profesorExistente) return err(res, "El email ya está registrado");
+    const existing = await prisma.usuario.findUnique({ where: { email } });
+    if (existing) return err(res, "El email ya está registrado");
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const nuevoProfesor = await prisma.profesor.create({
+    const nuevo = await prisma.usuario.create({
       data: {
-        nombre, email, password: hashedPassword,
+        nombre, email, password: hashedPassword, role: "profesor",
         departamentoId: departamentoId ? Number(departamentoId) : undefined,
         tipoId: tipoId ? Number(tipoId) : undefined,
       },
       select: PROFESOR_SELECT,
     });
 
-    return created(res, nuevoProfesor);
+    return created(res, nuevo);
   } catch (error) {
     next(error);
   }
@@ -78,13 +79,13 @@ export const updateProfesor = async (req, res, next) => {
     if (departamentoId !== undefined) data.departamentoId = Number(departamentoId);
     if (tipoId !== undefined) data.tipoId = tipoId ? Number(tipoId) : null;
 
-    const profesorActualizado = await prisma.profesor.update({
+    const actualizado = await prisma.usuario.update({
       where: { id: Number(id) },
       data,
       select: PROFESOR_SELECT,
     });
 
-    return ok(res, profesorActualizado);
+    return ok(res, actualizado);
   } catch (error) {
     next(error);
   }
@@ -94,10 +95,12 @@ export const deleteProfesor = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const profesor = await prisma.profesor.findUnique({ where: { id: Number(id) } });
+    const profesor = await prisma.usuario.findFirst({
+      where: { id: Number(id), role: { in: ["profesor", "admin"] } },
+    });
     if (!profesor) return err(res, "Profesor no encontrado", 404);
 
-    await prisma.profesor.delete({ where: { id: Number(id) } });
+    await prisma.usuario.delete({ where: { id: Number(id) } });
 
     return ok(res, null);
   } catch (error) {
@@ -112,7 +115,7 @@ export const updateDuracionCita = async (req, res, next) => {
 
     if (role !== "profesor") return err(res, "Solo los profesores pueden cambiar la duración", 403);
 
-    const profesor = await prisma.profesor.update({
+    const profesor = await prisma.usuario.update({
       where: { id },
       data: { duracionCita: Number(duracionCita) },
       select: PROFESOR_SELECT,

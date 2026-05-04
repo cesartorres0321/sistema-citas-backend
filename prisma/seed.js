@@ -17,7 +17,6 @@ const TIPOS_PROFESOR = [
 ]
 
 async function main() {
-  // Crear departamentos
   for (const nombre of DEPARTAMENTOS) {
     await prisma.departamento.upsert({
       where: { nombre },
@@ -27,7 +26,6 @@ async function main() {
   }
   console.log('Departamentos creados:', DEPARTAMENTOS.join(', '))
 
-  // Crear tipos de profesor
   for (const nombre of TIPOS_PROFESOR) {
     await prisma.tipoProfesor.upsert({
       where: { nombre },
@@ -37,24 +35,23 @@ async function main() {
   }
   console.log('Tipos de profesor creados:', TIPOS_PROFESOR.join(', '))
 
-  // Crear admin
   const EMAIL = 'admin@iest.mx'
-  const existing = await prisma.profesor.findUnique({ where: { email: EMAIL } })
+  const existing = await prisma.usuario.findUnique({ where: { email: EMAIL } })
   if (existing) {
     console.log('El usuario admin ya existe, omitiendo.')
     return
   }
 
-  const departamentoAdmin = await prisma.departamento.findUnique({ where: { nombre: 'Administración' } })
+  const dpto = await prisma.departamento.findUnique({ where: { nombre: 'Administración' } })
   const hashedPassword = await bcrypt.hash('chato3017', 10)
 
-  await prisma.profesor.create({
+  await prisma.usuario.create({
     data: {
       nombre: 'Administrador',
       email: EMAIL,
       password: hashedPassword,
-      departamentoId: departamentoAdmin.id,
       role: 'admin',
+      departamentoId: dpto.id,
     },
   })
 

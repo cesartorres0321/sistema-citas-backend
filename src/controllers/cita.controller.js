@@ -77,8 +77,8 @@ export const createCita = async (req, res, next) => {
 
     const fechaConvertida = new Date(fecha);
 
-    const profesor = await prisma.profesor.findUnique({
-      where: { id: Number(profesorId) }
+    const profesor = await prisma.usuario.findFirst({
+      where: { id: Number(profesorId), role: { in: ["profesor", "admin"] } },
     });
 
     if (!profesor) return err(res, "El profesor no existe", 404);
@@ -156,10 +156,7 @@ export const createCita = async (req, res, next) => {
       return next(error);
     }
 
-    // Obtener alumno
-    const alumno = await prisma.alumno.findUnique({
-      where: { id: alumnoId }
-    });
+    const alumno = await prisma.usuario.findUnique({ where: { id: alumnoId } });
 
     // Email con archivo .ics adjunto y link a Google Calendar
     try {
@@ -215,7 +212,9 @@ export const getHorariosDisponibles = async (req, res, next) => {
 
     const fechaConvertida = new Date(fecha);
 
-    const profesor = await prisma.profesor.findUnique({ where: { id: Number(profesorId) } });
+    const profesor = await prisma.usuario.findFirst({
+      where: { id: Number(profesorId), role: { in: ["profesor", "admin"] } },
+    });
     if (!profesor) return err(res, "Profesor no encontrado", 404);
 
     const diaSemana = fechaConvertida.getDay();
